@@ -10,72 +10,27 @@
     <nav>
         <ul>
             <li class="brand"><img src="logo.jpg" alt="Logo">Music</li>
-            <!-- <li>Home</li>
-            <li>About</li> -->
+            
         </ul>
     </nav>
     <div class="container">
         <div class="songlist">
             <h1>Best of 2023</h1>
             <div class="songItemContainer">
-                <div class="songItem">
-                    <img  alt="1">
-                    <span class="songName">Let me Love You</span>
-                    <span class="songlistplay"><span class="timestamp">05 :34 <i id="1" class="far songItemPlay fa-play-circle"></i></span></span>
-                </div>
-                <div class="songItem">
-                    <img  alt="2">
-                    <span class="songName">Let me Love You</span>
-                    <span class="songlistplay"><span class="timestamp">05:34 <i id="2"  class="far songItemPlay fa-play-circle"></i></span></span>
-                </div>
-                <div class="songItem">
-                    <img  alt="3">
-                    <span class="songName">Let me Love You</span>
-                    <span class="songlistplay"><span class="timestamp">05 :34 <i id="3" class="far songItemPlay fa-play-circle"></i></span></span>
-                </div>
-                <div class="songItem">
-                    <img  alt="4">
-                    <span class="songName">Let me Love You</span>
-                    <span class="songlistplay"><span class="timestamp">05 :34 <i id="4" class="far songItemPlay fa-play-circle"></i></span></span>
-                </div>
-                <div class="songItem">
-                    <img  alt="5">
-                    <span class="songName">Let me Love You</span>
-                    <span class="songlistplay"><span class="timestamp">05 :34 <i id="5" class="far songItemPlay fa-play-circle"></i></span></span>
-                </div>
-                <div class="songItem">
-                    <img  alt="6">
-                    <span class="songName">Let me Love You</span>
-                    <span class="songlistplay"><span class="timestamp">05 :34 <i id="6" class="far songItemPlay fa-play-circle"></i></span></span>
-                </div>
-                <div class="songItem">
-                    <img  alt="7">
-                    <span class="songName">Let me Love You</span>
-                    <span class="songlistplay"><span class="timestamp">05 :34 <i id="7" class="far songItemPlay fa-play-circle"></i></span></span>
-                </div>
-                <div class="songItem">
-                    <img  alt="7">
-                    <span class="songName">Let me Love You</span>
-                    <span class="songlistplay"><span class="timestamp">05 :34 <i id="7" class="far songItemPlay fa-play-circle"></i></span></span>
-                </div>
+               
             </div>
-
         </div>
-        <div class="songbanner"> current song </div>
+        <div class="songbanner">Current Song: <span id="currentSong"></span></div>
     </div>
     <div class="bottom">
         <input type="range" name="rang" id="myProgressBar" min="0" value="0" max="100">
         <div class="icon">
-            <!-- fontawasom icon -->
-            <!-- <i class="fa-regular fa -3x fa-circle-play" style="color: #f54dd6;"></i> -->
             <i class="fa-solid fa-3x fa-backward" id="previous"></i>
             <i class="far fa-3x fa-play-circle" id="masterPlay"></i>
             <i class="fa-solid fa-3x fa-forward" id="next"></i>
-            <!-- <i class="fa-solid fa-3x fa-paused" ></i> -->
-            
         </div>
         <div class="songInfo">
-            <img src="music.gif" width="42px" alt="" id="gif"><span id="masterSongName"></span>
+            <img src="music.gif" width="42px" alt="Playing" id="gif"><span id="masterSongName"></span>
         </div>
     </div>
     <script src="https://kit.fontawesome.com/58e06ccd49.js" crossorigin="anonymous"></script>
