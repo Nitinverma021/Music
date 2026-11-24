@@ -59,8 +59,13 @@ db.version(1).stores({
 export const newId = () => crypto.randomUUID();
 
 export async function toggleLike(id: string) {
-  const t = await db.tracks.get(id);
-  if (t) await db.tracks.update(id, { liked: t.liked ? 0 : 1 });
+  // Read-and-write in one step so two quick clicks can't both read the old value.
+  await db.tracks
+    .where("id")
+    .equals(id)
+    .modify((t) => {
+      t.liked = t.liked ? 0 : 1;
+    });
 }
 
 export async function createPlaylist(name: string, trackIds: string[] = []) {
@@ -81,12 +86,14 @@ export async function addToPlaylist(playlistId: string, trackIds: string[]) {
     });
 }
 
-export async function removeFromPlaylist(playlistId: string, index: number) {
+/** Playlists never hold the same track twice (see addToPlaylist), so removing by id is exact. */
+export async function removeFromPlaylist(playlistId: string, trackIds: string[]) {
+  const remove = new Set(trackIds);
   await db.playlists
     .where("id")
     .equals(playlistId)
     .modify((p) => {
-      p.trackIds.splice(index, 1);
+      p.trackIds = p.trackIds.filter((id) => !remove.has(id));
       p.updatedAt = Date.now();
     });
 }

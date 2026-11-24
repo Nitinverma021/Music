@@ -1,6 +1,7 @@
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Playlist, type Track } from "./db";
+import { usePlayer } from "../store/player";
 
 export interface Album {
   id: string;
@@ -34,8 +35,17 @@ interface Library {
 
 const Ctx = createContext<Library | null>(null);
 
+/** base64url: only [A-Za-z0-9_-], so the id survives any URL encoding/decoding the router does. */
+function base64url(text: string) {
+  let bin = "";
+  for (const byte of new TextEncoder().encode(text)) bin += String.fromCharCode(byte);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+// Album artist and title are joined with a NUL (which can't appear in tags) and base64url-encoded:
+// unique per album, and safe for names with "/", "%", "|", "#", "?" and the like.
 export const albumId = (t: Pick<Track, "album" | "albumArtist">) =>
-  encodeURIComponent(`${t.albumArtist}|${t.album}`.toLowerCase());
+  base64url(`${t.albumArtist.toLowerCase()}\u0000${t.album.toLowerCase()}`);
 export const artistId = (name: string) => encodeURIComponent(name.toLowerCase());
 
 const byTrackNo = (a: Track, b: Track) =>
@@ -65,6 +75,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     }
     const albums = [...albumMap.values()].sort((a, b) => a.title.localeCompare(b.title));
     albums.forEach((a) => a.tracks.sort(byTrackNo));
+    // Album links from before ids encoded each part separately ("artist|album" as one string) keep working.
+    const albumById = new Map(albumMap);
+    for (const a of albums) {
+      const legacy = encodeURIComponent(`${a.artist}|${a.title}`.toLowerCase());
+      if (!albumById.has(legacy)) albumById.set(legacy, a);
+    }
 
     const artistMap = new Map<string, Artist>();
     for (const t of list) {
@@ -88,19 +104,26 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       tracks: list,
       byId,
       albums,
-      albumById: albumMap,
+      albumById,
       artists,
       artistById: artistMap,
       playlists: playlists ?? [],
     };
   }, [tracks, playlists]);
 
+  // Drop queue entries for songs that no longer exist: deleted in another tab, or while the app was closed.
+  useEffect(() => {
+    if (!value.loaded) return;
+    const missing = new Set(usePlayer.getState().queue.map((i) => i.trackId).filter((id) => !value.byId.has(id)));
+    if (missing.size) usePlayer.getState().removeTracks([...missing]);
+  }, [value]);
+
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 /** Route params arrive decoded; map keys are encoded. Tolerates either. */
 export function lookup<T>(map: Map<string, T>, param: string): T | undefined {
-  return map.get(encodeURIComponent(param.toLowerCase())) ?? map.get(param);
+  return map.get(encodeURIComponent(param)) ?? map.get(encodeURIComponent(param.toLowerCase())) ?? map.get(param);
 }
 
 export function useLibrary() {

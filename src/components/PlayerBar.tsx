@@ -17,7 +17,7 @@ export function PlayerBar() {
   return (
     <>
       {/* Desktop */}
-      <div className="hidden h-20 grid-cols-[minmax(0,1fr)_minmax(0,40rem)_minmax(0,1fr)] items-center gap-4 border-t border-white/8 bg-zinc-950 px-4 md:grid">
+      <div className="hidden h-20 grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,40rem)_minmax(0,1fr)] items-center gap-4 border-t border-white/8 bg-zinc-950 px-4 md:grid">
         <div className="flex min-w-0 items-center gap-3">
           <button type="button" className="group relative" aria-label="Open full-screen player" onClick={openNowPlaying}>
             <Cover coverId={track.coverId} seed={track.album} className="size-14" />
@@ -52,7 +52,8 @@ export function PlayerBar() {
           >
             <ListMusic size={18} />
           </button>
-          <VolumeControl />
+          {/* Too wide for tablet widths; volume stays on the keyboard (↑/↓) and in the full-screen player. */}
+          <VolumeControl className="max-lg:hidden" />
           <button type="button" className="icon-btn" aria-label="Full-screen player" title="Full screen (F)" onClick={openNowPlaying}>
             <Maximize2 size={16} />
           </button>

@@ -12,7 +12,15 @@ export interface ImportResult {
   added: number;
   skipped: number;
   failed: string[];
+  /** The browser's storage quota was hit; the import stopped early. */
+  outOfSpace: boolean;
 }
+
+const isQuotaError = (err: unknown): boolean => {
+  const e = err as { name?: string; message?: string; inner?: unknown } | null;
+  if (!e) return false;
+  return /quota/i.test(`${e.name} ${e.message}`) || (!!e.inner && isQuotaError(e.inner));
+};
 
 /** "Artist - Title.mp3" → { artist, title } ; otherwise title only. */
 export function parseFileName(name: string) {
@@ -84,7 +92,9 @@ async function importOne(file: File, mm: typeof import("music-metadata")): Promi
     // Unreadable tags — fall back to the filename.
   }
   if (!duration) duration = await probeDuration(file);
-  if (!duration && !common) throw new Error("Unsupported or corrupt file");
+  // Neither the tag parser nor the browser found any audio: corrupt, empty or not really audio.
+  // (The parser returns an empty `common` even for garbage, so tags alone don't prove anything.)
+  if (!(duration > 0)) throw new Error("Unsupported or corrupt file");
 
   let coverId: string | undefined;
   const pic = mm.selectCover(common?.picture);
@@ -96,7 +106,10 @@ async function importOne(file: File, mm: typeof import("music-metadata")): Promi
     }
   }
 
-  const artist = common?.artist || common?.albumartist || fromName.artist || "Unknown Artist";
+  // ID3v2.3 uses "/" as a multi-artist separator, so the parser splits names like "AC/DC" into
+  // ["AC", "DC"] and `common.artist` keeps only "AC". Rejoin to get the tag's original text back.
+  const tagArtist = common?.artists && common.artists.length > 1 ? common.artists.join("/") : common?.artist;
+  const artist = tagArtist || common?.albumartist || fromName.artist || "Unknown Artist";
   const track: Track = {
     id: newId(),
     title: common?.title || fromName.title,
@@ -127,8 +140,16 @@ export async function importFiles(
   input: File[],
   onProgress?: (done: number, total: number) => void,
 ): Promise<ImportResult> {
-  const files = input.filter(isAudioFile);
-  const result: ImportResult = { added: 0, skipped: input.length - files.length, failed: [] };
+  // Drop non-audio files and in-batch duplicates up front: the parallel workers below
+  // would otherwise all pass the database duplicate check before any of them writes.
+  const seen = new Set<string>();
+  const files = input.filter((f) => {
+    const key = `${f.name}\u0000${f.size}`;
+    if (!isAudioFile(f) || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const result: ImportResult = { added: 0, skipped: input.length - files.length, failed: [], outOfSpace: false };
   if (!files.length) return result;
 
   // Ask the browser not to evict the library under storage pressure.
@@ -139,12 +160,17 @@ export async function importFiles(
   let done = 0;
   let next = 0;
   const worker = async () => {
-    while (next < files.length) {
+    while (next < files.length && !result.outOfSpace) {
       const file = files[next++];
       try {
         const r = await importOne(file, mm);
         result[r]++;
       } catch (err) {
+        if (isQuotaError(err)) {
+          // No point trying the rest; stop every worker.
+          result.outOfSpace = true;
+          return;
+        }
         console.warn("Import failed", file.name, err);
         result.failed.push(file.name);
       }
@@ -163,16 +189,21 @@ export async function filesFromDataTransfer(dt: DataTransfer): Promise<File[]> {
   if (!entries.length) return Array.from(dt.files);
 
   const out: File[] = [];
+  // One unreadable file or folder must not abort the whole drop, so each entry fails on its own.
   const walk = async (entry: FileSystemEntry): Promise<void> => {
-    if (entry.isFile) {
-      out.push(await new Promise<File>((res, rej) => (entry as FileSystemFileEntry).file(res, rej)));
-    } else if (entry.isDirectory) {
-      const reader = (entry as FileSystemDirectoryEntry).createReader();
-      let batch: FileSystemEntry[];
-      do {
-        batch = await new Promise<FileSystemEntry[]>((res, rej) => reader.readEntries(res, rej));
-        for (const e of batch) await walk(e);
-      } while (batch.length);
+    try {
+      if (entry.isFile) {
+        out.push(await new Promise<File>((res, rej) => (entry as FileSystemFileEntry).file(res, rej)));
+      } else if (entry.isDirectory) {
+        const reader = (entry as FileSystemDirectoryEntry).createReader();
+        let batch: FileSystemEntry[];
+        do {
+          batch = await new Promise<FileSystemEntry[]>((res, rej) => reader.readEntries(res, rej));
+          for (const e of batch) await walk(e);
+        } while (batch.length);
+      }
+    } catch (err) {
+      console.warn("Couldn't read", entry.fullPath, err);
     }
   };
   for (const e of entries) await walk(e);

@@ -37,15 +37,15 @@ export function Songs() {
     <div>
       <PageTitle
         title="Songs"
-        subtitle={`${plural(tracks.length, "song")} · ${formatTotal(total)}`}
+        subtitle={`${q ? `${list.length} of ${plural(tracks.length, "song")}` : plural(tracks.length, "song")} · ${formatTotal(total)}`}
         actions={<ImportButtons compact />}
       />
       <PlayActions trackIds={list.map((t) => t.id)}>
-        <div className="ml-auto flex items-center gap-2">
-          <label className="relative hidden sm:block">
+        <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2 max-sm:basis-full">
+          <label className="relative min-w-0 flex-1 sm:max-w-56">
             <span className="sr-only">Filter songs</span>
             <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-            <input className="input w-56 pl-9" placeholder="Filter" value={filter} onChange={(e) => setFilter(e.target.value)} />
+            <input className="input w-full pl-9" placeholder="Filter" value={filter} onChange={(e) => setFilter(e.target.value)} />
           </label>
           <label className="flex items-center gap-2 text-sm text-zinc-400">
             <span className="sr-only sm:not-sr-only">Sort</span>

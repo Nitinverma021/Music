@@ -85,7 +85,8 @@ export function useShortcuts() {
           break;
         case "/":
           p.setNowPlayingOpen(false);
-          navigate("/search");
+          // Already searching: just focus the box (navigating would drop the current query).
+          if (!location.hash.startsWith("#/search")) navigate("/search");
           requestAnimationFrame(() => document.getElementById("search-input")?.focus());
           break;
         case "?":

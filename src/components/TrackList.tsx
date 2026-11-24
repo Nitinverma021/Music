@@ -59,12 +59,12 @@ export function TrackList({ tracks, albumMode, showAlbum = true, showAdded = fal
     s.playTracks(ids, i);
   };
 
-  const openMenu = (e: MouseEvent, track: Track, index: number) => {
+  const openMenu = (e: MouseEvent, track: Track) => {
     e.preventDefault();
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const fromButton = e.type === "click";
-    const context: TrackMenuContext | undefined = playlistId ? { playlistId, playlistIndex: index } : undefined;
+    const context: TrackMenuContext | undefined = playlistId ? { playlistId } : undefined;
     useUi.getState().openMenu({
       x: fromButton ? rect.right : e.clientX,
       y: fromButton ? rect.bottom + 4 : e.clientY,
@@ -142,7 +142,7 @@ interface RowProps {
   isCurrent: boolean;
   isPlaying: boolean;
   onPlay: (i: number) => void;
-  onMenu: (e: MouseEvent, t: Track, i: number) => void;
+  onMenu: (e: MouseEvent, t: Track) => void;
 }
 
 const Row = memo(function Row({
@@ -166,7 +166,7 @@ const Row = memo(function Row({
       className={cn(cols, "group absolute inset-x-0 rounded-md transition-colors hover:bg-white/6", isCurrent && "bg-white/4")}
       style={{ height: ROW, transform: `translateY(${top}px)` }}
       onClick={() => onPlay(index)}
-      onContextMenu={(e) => onMenu(e, t, index)}
+      onContextMenu={(e) => onMenu(e, t)}
     >
       <span role="cell" className="relative grid place-items-center text-sm tabular-nums text-zinc-500">
         {isCurrent ? (
@@ -220,7 +220,7 @@ const Row = memo(function Row({
           className="icon-btn size-8 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
           aria-label={`More options for ${t.title}`}
           aria-haspopup="menu"
-          onClick={(e) => onMenu(e, t, index)}
+          onClick={(e) => onMenu(e, t)}
         >
           <MoreHorizontal size={18} />
         </button>

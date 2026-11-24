@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import { ChevronDown, ListMusic, MoreHorizontal } from "lucide-react";
 import { useCover } from "../lib/covers";
+import { trapFocus } from "../lib/focus";
 import { albumId, artistId } from "../lib/library";
 import { usePlayer } from "../store/player";
 import { useUi } from "../store/ui";
@@ -26,7 +27,11 @@ function Sheet() {
     const prev = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !useUi.getState().menu && !document.querySelector("dialog[open]")) close();
+      // defaultPrevented: a menu (or other layer) already used this Escape to close itself.
+      if (e.key === "Escape" && !e.defaultPrevented && !useUi.getState().menu && !document.querySelector("dialog[open]")) {
+        e.preventDefault(); // tells the queue panel underneath not to close as well
+        close();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => {
@@ -42,6 +47,7 @@ function Sheet() {
       role="dialog"
       aria-modal="true"
       aria-label="Now playing"
+      onKeyDown={trapFocus}
       className="fixed inset-0 z-40 flex animate-slide-up flex-col overflow-hidden bg-zinc-950"
     >
       <div

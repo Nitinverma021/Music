@@ -139,8 +139,8 @@ function TrackMenu() {
         </>
       )}
       <div className="my-1 h-px bg-white/8" role="separator" />
-      {ctx?.playlistId != null && ctx.playlistIndex != null && (
-        <Item icon={<ListMinus size={16} />} onClick={run(() => removeFromPlaylist(ctx.playlistId!, ctx.playlistIndex!))}>
+      {ctx?.playlistId != null && (
+        <Item icon={<ListMinus size={16} />} onClick={run(() => removeFromPlaylist(ctx.playlistId!, menu.trackIds))}>
           Remove from this playlist
         </Item>
       )}

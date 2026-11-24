@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GripVertical, X } from "lucide-react";
 import { useLibrary } from "../lib/library";
 import { formatTime, formatTotal } from "../lib/format";
 import { cn } from "../lib/cn";
+import { isFullScreenLayout, trapFocus } from "../lib/focus";
 import { usePlayer } from "../store/player";
 import { useUi } from "../store/ui";
 import { Cover } from "./Cover";
@@ -17,11 +18,22 @@ export function QueuePanel() {
   const { byId } = useLibrary();
   const [drag, setDrag] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // On phones the queue covers the whole screen, so move focus into it (and back out when it closes).
+  useEffect(() => {
+    if (!open || !isFullScreenLayout()) return;
+    const prev = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    return () => prev?.focus?.({ preventScroll: true });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !useUi.getState().menu && !document.querySelector("dialog[open]")) p().setQueueOpen(false);
+      // Skip if a layer above handled it (the full-screen player sits on top of the queue).
+      if (e.key !== "Escape" || e.defaultPrevented || p().nowPlayingOpen) return;
+      if (!useUi.getState().menu && !document.querySelector("dialog[open]")) p().setQueueOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -36,6 +48,7 @@ export function QueuePanel() {
   return (
     <aside
       aria-label="Queue"
+      onKeyDown={(e) => isFullScreenLayout() && trapFocus(e)}
       className="fixed inset-0 z-30 flex animate-fade-in flex-col bg-zinc-950 md:static md:z-auto md:w-80 md:shrink-0 md:rounded-xl md:bg-surface lg:w-96"
     >
       <header className="flex items-center justify-between px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))] md:pt-4">
@@ -46,7 +59,7 @@ export function QueuePanel() {
               Clear
             </button>
           )}
-          <button type="button" className="icon-btn" aria-label="Close queue" onClick={() => p().setQueueOpen(false)}>
+          <button ref={closeRef} type="button" className="icon-btn" aria-label="Close queue" onClick={() => p().setQueueOpen(false)}>
             <X size={18} />
           </button>
         </div>
@@ -90,7 +103,12 @@ export function QueuePanel() {
                       setDrag(null);
                       setOver(null);
                     }}
-                    className={cn(drag === qi && "opacity-40", over === qi && drag !== qi && "shadow-[inset_0_2px_0_var(--color-accent)]")}
+                    className={cn(
+                      drag === qi && "opacity-40",
+                      // The dragged item lands in the hovered row's slot: above it when moving up, below it when moving down.
+                      over === qi && drag !== null && drag !== qi &&
+                        (drag > qi ? "shadow-[inset_0_2px_0_var(--color-accent)]" : "shadow-[inset_0_-2px_0_var(--color-accent)]"),
+                    )}
                   >
                     <QueueRow
                       trackId={item.trackId}
@@ -150,7 +168,7 @@ function QueueRow({
           <span className="text-xs tabular-nums text-zinc-500 group-hover:hidden group-focus-within:hidden">{formatTime(t.duration)}</span>
           <button
             type="button"
-            className="icon-btn hidden size-7 group-hover:inline-flex group-focus-within:inline-flex"
+            className="icon-btn hidden size-7 group-hover:inline-flex group-focus-within:inline-flex pointer-coarse:inline-flex"
             aria-label={`Remove ${t.title} from queue`}
             onClick={onRemove}
           >

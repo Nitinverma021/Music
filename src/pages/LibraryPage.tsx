@@ -45,11 +45,11 @@ export function LibraryPage() {
         {lib.playlists.map((p) => (
           <li key={p.id}>
             <Link to={`/playlist/${p.id}`} className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-white/5">
-              <span className="grid size-12 place-items-center rounded-md bg-white/8 text-zinc-400">
+              <span className="grid size-12 shrink-0 place-items-center rounded-md bg-white/8 text-zinc-400">
                 <ListMusic size={20} />
               </span>
-              <span>
-                <span className="block font-medium">{p.name}</span>
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{p.name}</span>
                 <span className="block text-xs text-zinc-500">{plural(p.trackIds.length, "song")}</span>
               </span>
             </Link>

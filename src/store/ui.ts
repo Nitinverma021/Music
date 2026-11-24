@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { importFiles } from "../lib/import";
 import { plural } from "../lib/format";
 
-export type TrackMenuContext = { playlistId?: string; playlistIndex?: number; queueKey?: string };
+export type TrackMenuContext = { playlistId?: string; queueKey?: string };
 
 interface MenuState {
   x: number;
@@ -50,6 +50,13 @@ export async function runImport(files: File[]) {
       useUi.setState({ importing: { done, total } });
       toast.loading(`Importing ${done} of ${total}…`, { id });
     });
+    if (r.outOfSpace) {
+      toast.error("Your browser ran out of storage space", {
+        id,
+        description: r.added ? `Added ${plural(r.added, "song")} before it filled up.` : "No songs were added.",
+      });
+      return;
+    }
     const parts = [];
     if (r.skipped) parts.push(`${plural(r.skipped, "file")} skipped (duplicates or not audio)`);
     if (r.failed.length) parts.push(`${r.failed.length} couldn't be read`);

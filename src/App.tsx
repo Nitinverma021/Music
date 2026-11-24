@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { HashRouter, Route, Routes, useLocation } from "react-router";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { HashRouter, Route, Routes, useLocation, useParams } from "react-router";
 import { Toaster } from "sonner";
 import { LibraryProvider } from "./lib/library";
 import { ScrollContext } from "./lib/scroll";
@@ -18,7 +18,16 @@ import { Search } from "./pages/Search";
 import { LibraryPage } from "./pages/LibraryPage";
 import { Settings } from "./pages/Settings";
 
+// Below `md` the mini-player + bottom tabs are ~150px tall. Sonner's own `mobileOffset`
+// only kicks in under 600px, so pick the offset from our breakpoint instead.
+const compactQuery = typeof window !== "undefined" ? window.matchMedia("(max-width: 767.98px)") : undefined;
+const subscribeCompact = (cb: () => void) => {
+  compactQuery?.addEventListener("change", cb);
+  return () => compactQuery?.removeEventListener("change", cb);
+};
+
 export default function App() {
+  const compact = useSyncExternalStore(subscribeCompact, () => !!compactQuery?.matches);
   return (
     <HashRouter>
       <LibraryProvider>
@@ -30,7 +39,7 @@ export default function App() {
         <Toaster
           theme="dark"
           position="bottom-center"
-          offset={{ bottom: 104 }}
+          offset={{ bottom: compact ? 150 : 104 }}
           mobileOffset={{ bottom: 150 }}
           richColors
           closeButton
@@ -39,6 +48,12 @@ export default function App() {
       </LibraryProvider>
     </HashRouter>
   );
+}
+
+/** Remount per playlist so state like an open rename box can't carry over to another playlist. */
+function KeyedPlaylistPage() {
+  const { id } = useParams();
+  return <PlaylistPage key={id} />;
 }
 
 function Shell() {
@@ -77,7 +92,7 @@ function Shell() {
                 <Route path="/artist/:id" element={<Artist />} />
                 <Route path="/liked" element={<Liked />} />
                 <Route path="/playlists" element={<Playlists />} />
-                <Route path="/playlist/:id" element={<PlaylistPage />} />
+                <Route path="/playlist/:id" element={<KeyedPlaylistPage />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<p className="py-20 text-center text-zinc-400">Page not found.</p>} />
               </Routes>

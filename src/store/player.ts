@@ -24,7 +24,8 @@ interface PlayerState extends Q.QueueState {
   clearUpcoming: () => void;
   toggle: () => void;
   setPlaying: (playing: boolean) => void;
-  next: (auto?: boolean) => void;
+  /** `play: false` advances without starting playback (e.g. skipping a broken file while paused). */
+  next: (auto?: boolean, play?: boolean) => void;
   prev: (currentTime: number) => void;
   setVolume: (v: number) => void;
   toggleMute: () => void;
@@ -58,12 +59,8 @@ export const usePlayer = create<PlayerState>()(
       },
       playNext: (ids) => set((s) => Q.playNext(s, ids)),
       addToQueue: (ids) => set((s) => Q.addToQueue(s, ids)),
-      removeFromQueue: (key) => set((s) => Q.removeFromQueue(s, key)),
-      removeTracks: (ids) =>
-        set((s) => {
-          const r = Q.removeTracks(s, new Set(ids));
-          return r.queue.length ? r : { ...r, isPlaying: false };
-        }),
+      removeFromQueue: (key) => set((s) => afterRemoval(s, Q.removeFromQueue(s, key))),
+      removeTracks: (ids) => set((s) => afterRemoval(s, Q.removeTracks(s, new Set(ids)))),
       moveInQueue: (from, to) => set((s) => Q.moveInQueue(s, from, to)),
       jumpTo: (index) => set((s) => ({ index, isPlaying: true, resumeAt: 0, restartToken: s.restartToken + 1 })),
       clearUpcoming: () =>
@@ -73,11 +70,11 @@ export const usePlayer = create<PlayerState>()(
         }),
       toggle: () => set((s) => ({ isPlaying: s.queue.length ? !s.isPlaying : false })),
       setPlaying: (isPlaying) => set({ isPlaying }),
-      next: (auto = false) =>
+      next: (auto = false, play = true) =>
         set((s) => {
           const r = Q.nextIndex(s.queue.length, s.index, s.repeat, auto);
           if (r.stop) return { isPlaying: false, resumeAt: 0, restartToken: s.restartToken + 1 };
-          return { index: r.index, isPlaying: true, resumeAt: 0, restartToken: s.restartToken + 1 };
+          return { index: r.index, isPlaying: play, resumeAt: 0, restartToken: s.restartToken + 1 };
         }),
       prev: (currentTime) =>
         set((s) => {
@@ -108,6 +105,19 @@ export const usePlayer = create<PlayerState>()(
     },
   ),
 );
+
+/**
+ * After queue entries are removed: if the current entry was among them, start the
+ * following one from 0 — or stop if nothing followed it (don't replay an earlier song).
+ */
+function afterRemoval(s: PlayerState, r: Q.QueueState): Partial<PlayerState> {
+  if (!r.queue.length) return { ...r, isPlaying: false, resumeAt: 0 };
+  const current = s.queue[s.index];
+  const kept = new Set(r.queue.map((i) => i.key));
+  if (!current || kept.has(current.key)) return r;
+  const hadFollower = s.queue.slice(s.index + 1).some((i) => kept.has(i.key));
+  return { ...r, resumeAt: 0, restartToken: s.restartToken + 1, isPlaying: hadFollower && s.isPlaying };
+}
 
 export const currentTrackId = (s: Pick<PlayerState, "queue" | "index">) => s.queue[s.index]?.trackId;
 

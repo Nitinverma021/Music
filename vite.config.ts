@@ -13,7 +13,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: "autoUpdate",
+      // "prompt": a new version waits until the user chooses to reload, so a deploy never cuts off a playing song.
+      registerType: "prompt",
       includeAssets: ["icon.svg"],
       manifest: {
         name: "Musicsite",

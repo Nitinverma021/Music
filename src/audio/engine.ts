@@ -23,7 +23,8 @@ const ms = typeof navigator !== "undefined" && "mediaSession" in navigator ? nav
 function playSafe() {
   audio.play().catch((err: DOMException) => {
     if (err.name === "NotAllowedError") usePlayer.getState().setPlaying(false);
-    else if (err.name !== "AbortError") console.error(err);
+    // AbortError: superseded by a newer load. NotSupportedError: reported by the "error" handler.
+    else if (err.name !== "AbortError" && err.name !== "NotSupportedError") console.error(err);
   });
 }
 
@@ -45,8 +46,17 @@ function unload() {
   if (objectUrl) URL.revokeObjectURL(objectUrl);
   objectUrl = undefined;
   useProgress.setState({ currentTime: 0, duration: 0, buffering: false });
-  if (ms) ms.metadata = null;
+  if (ms) {
+    ms.metadata = null;
+    ms.playbackState = "none";
+  }
   document.title = "Musicsite";
+}
+
+/** Start playback; a source that already failed can't just be play()ed again, so reload it (re-running error handling). */
+function resume(id: string, startAt: number) {
+  if (audio.error) load(id, startAt);
+  else playSafe();
 }
 
 async function load(id: string, startAt: number) {
@@ -65,7 +75,8 @@ async function load(id: string, startAt: number) {
   useProgress.setState({ currentTime: startAt, duration: track.duration });
   audio.src = objectUrl;
   if (startAt > 0) {
-    audio.addEventListener("loadedmetadata", () => (audio.currentTime = startAt), { once: true });
+    // Ignore if a newer load has replaced this one before its metadata arrived.
+    audio.addEventListener("loadedmetadata", () => seq === loadSeq && (audio.currentTime = startAt), { once: true });
   }
   updateMediaSession(track);
   if (usePlayer.getState().isPlaying) playSafe();
@@ -113,7 +124,9 @@ function sync(s: State, prev?: State) {
   lastToken = s.restartToken;
 
   if (id !== targetId) {
-    load(id, s.resumeAt);
+    // The saved position belongs only to the track restored on startup (no `prev`);
+    // any later switch (deletions, queue edits) starts the new track from 0.
+    load(id, prev ? 0 : s.resumeAt);
     return;
   }
   if (currentTrack?.id !== id) return; // still loading; load() starts playback if needed
@@ -122,20 +135,23 @@ function sync(s: State, prev?: State) {
     // Restart the same track (repeat-one, "previous" after 3s, replaying the same song).
     audio.currentTime = s.resumeAt || 0;
     useProgress.setState({ currentTime: audio.currentTime });
-    if (s.isPlaying && audio.paused) playSafe();
+    if (s.isPlaying && audio.paused) resume(id, s.resumeAt || 0);
     else if (!s.isPlaying && !audio.paused) audio.pause();
     return;
   }
   if (prev && s.isPlaying !== prev.isPlaying) {
-    if (s.isPlaying && audio.paused) playSafe();
+    if (s.isPlaying && audio.paused) resume(id, 0);
     else if (!s.isPlaying && !audio.paused) audio.pause();
   }
 }
 
 let saveTimer = 0;
 function savePosition() {
-  if (currentTrack) usePlayer.setState({ resumeAt: audio.currentTime });
+  if (isSettled()) usePlayer.setState({ resumeAt: audio.currentTime });
 }
+
+/** False while a new track is being fetched and the old one is still in the element. */
+const isSettled = () => !!currentTrack && currentTrack.id === targetId;
 
 export function initEngine() {
   lastToken = usePlayer.getState().restartToken;
@@ -148,7 +164,13 @@ export function initEngine() {
     if (!usePlayer.getState().isPlaying) usePlayer.getState().setPlaying(true);
     if (currentTrack && countedFor !== currentTrack.id + lastToken) {
       countedFor = currentTrack.id + lastToken;
-      db.tracks.update(currentTrack.id, { lastPlayedAt: Date.now(), playCount: currentTrack.playCount + 1 });
+      db.tracks
+        .where("id")
+        .equals(currentTrack.id)
+        .modify((t) => {
+          t.playCount = (t.playCount ?? 0) + 1;
+          t.lastPlayedAt = Date.now();
+        });
     }
     if (ms) ms.playbackState = "playing";
   });
@@ -159,8 +181,9 @@ export function initEngine() {
     if (ms) ms.playbackState = "paused";
     if (!audio.ended) savePosition();
   });
-  audio.addEventListener("ended", () => usePlayer.getState().next(true));
+  audio.addEventListener("ended", () => isSettled() && usePlayer.getState().next(true));
   audio.addEventListener("timeupdate", () => {
+    if (!isSettled()) return;
     useProgress.setState({ currentTime: audio.currentTime });
     const now = Date.now();
     if (now - saveTimer > 10_000) {
@@ -180,17 +203,20 @@ export function initEngine() {
     updatePositionState();
   });
   audio.addEventListener("error", () => {
-    if (!audio.getAttribute("src")) return;
+    if (!audio.getAttribute("src") || !isSettled()) return;
+    const s = usePlayer.getState();
+    // Not playing (e.g. the song restored on startup): stay quiet. Pressing play reloads it
+    // via resume(), and the error is reported then.
+    if (!s.isPlaying) return;
     const name = currentTrack?.title ?? "this song";
     consecutiveErrors++;
-    const s = usePlayer.getState();
     if (consecutiveErrors >= Math.max(s.queue.length, 1)) {
-      toast.error("None of the songs in the queue could be played");
+      toast.error("None of the songs in the queue could be played", { id: "play-error" });
       s.setPlaying(false);
       consecutiveErrors = 0;
       return;
     }
-    toast.error(`Couldn't play “${name}”. Your browser may not support this format.`);
+    toast.error(`Couldn't play “${name}”. Your browser may not support this format.`, { id: "play-error" });
     s.next();
   });
 

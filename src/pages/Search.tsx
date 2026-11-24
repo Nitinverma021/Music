@@ -1,5 +1,5 @@
-import { useDeferredValue, useMemo } from "react";
-import { useSearchParams } from "react-router";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigationType, useSearchParams } from "react-router";
 import { Search as SearchIcon, X } from "lucide-react";
 import { useLibrary } from "../lib/library";
 import { usePlayer } from "../store/player";
@@ -10,7 +10,21 @@ import { plural } from "../lib/format";
 
 export function Search() {
   const [params, setParams] = useSearchParams();
-  const query = params.get("q") ?? "";
+  // The input owns its text; the URL just mirrors it (so reloads and back/forward keep the query).
+  // Driving the input straight from the URL loses the caret and drops keys, since URL updates are async.
+  const [query, setQuery] = useState(() => params.get("q") ?? "");
+  const update = (value: string) => {
+    setQuery(value);
+    setParams(value ? { q: value } : {}, { replace: true });
+  };
+  // Follow URL changes that didn't come from typing here (links, back/forward, editing the address).
+  // Our own updates are REPLACE navigations, so they never overwrite what is being typed.
+  const urlQuery = params.get("q") ?? "";
+  const navType = useNavigationType();
+  const { key } = useLocation();
+  useEffect(() => {
+    if (navType !== "REPLACE") setQuery(urlQuery);
+  }, [key, navType, urlQuery]);
   const q = useDeferredValue(query.trim().toLowerCase());
   const lib = useLibrary();
   const playTracks = usePlayer((s) => s.playTracks);
@@ -29,6 +43,7 @@ export function Search() {
 
   return (
     <div>
+      <h1 className="sr-only">Search</h1>
       <div className="sticky -top-4 z-20 -mx-4 bg-zinc-950/90 px-4 pb-4 pt-2 backdrop-blur md:-top-6 md:-mx-8 md:px-8">
         <label className="relative block max-w-xl">
           <span className="sr-only">Search your library</span>
@@ -41,10 +56,14 @@ export function Search() {
             className="input h-12 pl-12 pr-12 text-base [&::-webkit-search-cancel-button]:hidden"
             placeholder="What do you want to listen to?"
             value={query}
-            onChange={(e) => setParams(e.target.value ? { q: e.target.value } : {}, { replace: true })}
+            onChange={(e) => update(e.target.value)}
           />
           {query && (
-            <button type="button" className="icon-btn absolute right-2 top-1/2 -translate-y-1/2" aria-label="Clear search" onClick={() => setParams({}, { replace: true })}>
+            <button type="button" className="icon-btn absolute right-2 top-1/2 -translate-y-1/2" aria-label="Clear search" onClick={() => {
+                update("");
+                document.getElementById("search-input")?.focus();
+              }}
+            >
               <X size={18} />
             </button>
           )}

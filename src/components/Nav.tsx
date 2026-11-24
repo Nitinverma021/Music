@@ -26,7 +26,7 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 export function Sidebar() {
   const { playlists } = useLibrary();
   return (
-    <nav aria-label="Main" className="hidden w-60 shrink-0 flex-col gap-2 md:flex lg:w-64">
+    <nav aria-label="Main" className="scroll-area hidden w-60 shrink-0 flex-col gap-2 overflow-y-auto md:flex lg:w-64">
       <div className="rounded-xl bg-surface p-2">
         <div className="flex items-center gap-2 px-3 pb-3 pt-2">
           <img src="icon.svg" alt="" className="size-7" />
@@ -39,7 +39,7 @@ export function Sidebar() {
         ))}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col rounded-xl bg-surface p-2">
+      <div className="flex min-h-72 flex-1 flex-col rounded-xl bg-surface p-2">
         <p className="flex items-center gap-2 px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
           <Library size={14} /> Library
         </p>

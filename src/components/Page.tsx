@@ -65,11 +65,11 @@ export function Hero({
 export function PlayActions({ trackIds, children }: { trackIds: string[]; children?: ReactNode }) {
   const playTracks = usePlayer((s) => s.playTracks);
   return (
-    <div className="mb-4 flex items-center gap-3">
+    <div className="mb-4 flex flex-wrap items-center gap-3">
       <button
         type="button"
-        className="grid size-14 place-items-center rounded-full bg-accent text-zinc-950 shadow-lg shadow-accent/20 transition hover:scale-105 active:scale-95 disabled:opacity-40"
-        aria-label="Play"
+        className="grid size-14 shrink-0 place-items-center rounded-full bg-accent text-zinc-950 shadow-lg shadow-accent/20 transition hover:scale-105 active:scale-95 disabled:opacity-40"
+        aria-label="Play all"
         disabled={!trackIds.length}
         onClick={() => playTracks(trackIds, 0, { shuffle: false })}
       >
@@ -77,7 +77,7 @@ export function PlayActions({ trackIds, children }: { trackIds: string[]; childr
       </button>
       <button
         type="button"
-        className="icon-btn size-11"
+        className="icon-btn size-11 shrink-0"
         aria-label="Shuffle play"
         title="Shuffle play"
         disabled={!trackIds.length}
