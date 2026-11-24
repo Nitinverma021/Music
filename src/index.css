@@ -1,0 +1,140 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-accent: oklch(0.7 0.19 293);
+  --color-accent-strong: oklch(0.62 0.22 293);
+  --color-surface: oklch(0.17 0.005 286);
+  --color-surface-2: oklch(0.21 0.006 286);
+  --color-surface-3: oklch(0.26 0.006 286);
+  --animate-eq: eq 0.9s ease-in-out infinite;
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-slide-up: slide-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  @keyframes eq {
+    0%, 100% { transform: scaleY(0.3); }
+    50% { transform: scaleY(1); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slide-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-zinc-950 text-zinc-100 antialiased;
+    overscroll-behavior: none;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--color-accent) 40%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  dialog::backdrop {
+    background: rgb(0 0 0 / 0.6);
+    backdrop-filter: blur(4px);
+  }
+}
+
+@utility scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.15) transparent;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 h-10 text-sm font-semibold transition active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none select-none;
+}
+@utility btn-primary {
+  @apply btn bg-accent text-zinc-950 hover:bg-[oklch(0.76_0.17_293)];
+}
+@utility btn-ghost {
+  @apply btn bg-white/8 text-zinc-100 hover:bg-white/14;
+}
+@utility icon-btn {
+  @apply inline-flex items-center justify-center rounded-full size-9 text-zinc-400 transition hover:text-zinc-100 hover:bg-white/8 active:scale-95 disabled:opacity-40 disabled:pointer-events-none;
+}
+@utility input {
+  @apply h-10 w-full rounded-full bg-white/8 px-4 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none ring-1 ring-transparent transition focus:bg-white/12 focus:ring-accent/60;
+}
+@utility menu-item {
+  @apply flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-zinc-200 hover:bg-white/10 focus:bg-white/10 focus:outline-none;
+}
+
+/* Range slider: filled track via --pct */
+.range {
+  --pct: 0%;
+  appearance: none;
+  height: 16px;
+  background: transparent;
+  cursor: pointer;
+}
+.range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--fill, #fff) var(--pct), rgb(255 255 255 / 0.2) var(--pct));
+}
+.range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--fill, #fff) var(--pct), rgb(255 255 255 / 0.2) var(--pct));
+}
+.range::-webkit-slider-thumb {
+  appearance: none;
+  margin-top: -4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0;
+}
+.range:hover,
+.range:focus-visible {
+  --fill: var(--color-accent);
+}
+.range:hover::-webkit-slider-thumb,
+.range:focus-visible::-webkit-slider-thumb,
+.range:active::-webkit-slider-thumb {
+  opacity: 1;
+}
+.range:hover::-moz-range-thumb,
+.range:focus-visible::-moz-range-thumb {
+  opacity: 1;
+}
+.range:focus-visible {
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
